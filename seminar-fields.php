@@ -1,20 +1,19 @@
 <?php
 /*
 Plugin Name: Seminar Fields
-Description: 講習会ページ専用のカスタムフィールド
-Version: 1.0
+Description: 講習会ページ専用カスタムフィールド（基礎＋応用リピーター）
+Version: 1.0.2
 Author: Media-Confidence
 */
 
+// ==============================
 // メタボックス追加
+// ==============================
 function seminar_add_custom_fields() {
     global $post;
-
-    // テンプレートが "page-seminar.php" の場合のみ実行
-    $template = get_post_meta( $post->ID, '_wp_page_template', true );
-    if ( $template !== 'page-seminar.php' ) {
-        return; // 他ページでは非表示
-    }
+    if (!isset($post)) return;
+    $template = get_post_meta($post->ID, '_wp_page_template', true);
+    if ($template !== 'page-seminar.php') return;
 
     add_meta_box(
         'seminar_fields',
@@ -27,12 +26,37 @@ function seminar_add_custom_fields() {
 }
 add_action('add_meta_boxes', 'seminar_add_custom_fields');
 
-// メタボックスのHTML
+// ==============================
+// メタボックスHTML
+// ==============================
 function seminar_fields_html($post) {
+    $basic_dates = get_post_meta($post->ID, 'basic_dates', true);
+    $advanced_dates = get_post_meta($post->ID, 'advanced_dates', true);
+    if (!is_array($basic_dates)) $basic_dates = [];
+    if (!is_array($advanced_dates)) $advanced_dates = [];
+
+    // 基礎編
+    echo '<h3>基礎編 日程（複数追加可）</h3>';
+    echo '<div id="basic-repeater">';
+    foreach ($basic_dates as $val) {
+        echo '<input type="text" name="basic_dates[]" value="' . esc_attr($val) . '" class="widefat" />';
+    }
+    echo '<button type="button" class="button add-basic">＋ 追加</button>';
+    echo '</div>';
+
+    echo '<hr style="margin:20px 0;">';
+
+    // 応用編
+    echo '<h3>応用編 日程（複数追加可）</h3>';
+    echo '<div id="adv-repeater">';
+    foreach ($advanced_dates as $val) {
+        echo '<input type="text" name="advanced_dates[]" value="' . esc_attr($val) . '" class="widefat" />';
+    }
+    echo '<button type="button" class="button add-adv">＋ 追加</button>';
+    echo '</div>';
+
+    // カリキュラムなど既存項目も残す
     $fields = [
-        'basic_date_1' => '基礎編 日程①',
-        'basic_date_2' => '基礎編 日程②',
-        'advanced_date_1' => '応用編 日程①',
         'curriculum_title' => 'カリキュラム タイトル',
         'curriculum_text' => 'カリキュラム 説明文',
         'curriculum_basic' => 'カリキュラム（基礎編）',
@@ -46,19 +70,42 @@ function seminar_fields_html($post) {
         echo "<td><input type='text' id='{$key}' name='{$key}' value='{$value}' class='widefat'></td></tr>";
     }
     echo '</table>';
+
+    // 簡易JS（管理画面用リピーター追加）
+    ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function(){
+        document.querySelectorAll('.add-basic, .add-adv').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                const container = btn.closest('div');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.name = btn.classList.contains('add-basic') ? 'basic_dates[]' : 'advanced_dates[]';
+                input.className = 'widefat';
+                container.insertBefore(input, btn);
+            });
+        });
+    });
+    </script>
+    <?php
 }
 
+// ==============================
 // 保存処理
+// ==============================
 function seminar_save_custom_fields($post_id) {
-    $keys = [
-        'basic_date_1',
-        'basic_date_2',
-        'advanced_date_1',
-        'curriculum_title',
-        'curriculum_text',
-        'curriculum_basic',
-        'curriculum_advanced'
-    ];
+    // 基礎編
+    if (isset($_POST['basic_dates'])) {
+        $dates = array_filter(array_map('sanitize_text_field', $_POST['basic_dates']));
+        update_post_meta($post_id, 'basic_dates', $dates);
+    }
+    // 応用編
+    if (isset($_POST['advanced_dates'])) {
+        $dates = array_filter(array_map('sanitize_text_field', $_POST['advanced_dates']));
+        update_post_meta($post_id, 'advanced_dates', $dates);
+    }
+    // カリキュラム
+    $keys = ['curriculum_title','curriculum_text','curriculum_basic','curriculum_advanced'];
     foreach ($keys as $key) {
         if (isset($_POST[$key])) {
             update_post_meta($post_id, $key, sanitize_text_field($_POST[$key]));
