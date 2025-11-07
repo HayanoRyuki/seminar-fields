@@ -2,7 +2,7 @@
 /*
 Plugin Name: Seminar Fields
 Description: 講習会ページ専用カスタムフィールド（基礎＋応用リピーター）
-Version: 1.0.2
+Version: 1.0.3
 Author: Media-Confidence
 */
 
@@ -39,7 +39,10 @@ function seminar_fields_html($post) {
     echo '<h3>基礎編 日程（複数追加可）</h3>';
     echo '<div id="basic-repeater">';
     foreach ($basic_dates as $val) {
+        echo '<div class="repeater-item">';
         echo '<input type="text" name="basic_dates[]" value="' . esc_attr($val) . '" class="widefat" />';
+        echo '<button type="button" class="button remove-item">× 削除</button>';
+        echo '</div>';
     }
     echo '<button type="button" class="button add-basic">＋ 追加</button>';
     echo '</div>';
@@ -50,7 +53,10 @@ function seminar_fields_html($post) {
     echo '<h3>応用編 日程（複数追加可）</h3>';
     echo '<div id="adv-repeater">';
     foreach ($advanced_dates as $val) {
+        echo '<div class="repeater-item">';
         echo '<input type="text" name="advanced_dates[]" value="' . esc_attr($val) . '" class="widefat" />';
+        echo '<button type="button" class="button remove-item">× 削除</button>';
+        echo '</div>';
     }
     echo '<button type="button" class="button add-adv">＋ 追加</button>';
     echo '</div>';
@@ -71,19 +77,40 @@ function seminar_fields_html($post) {
     }
     echo '</table>';
 
-    // 簡易JS（管理画面用リピーター追加）
+    // 簡易JS（管理画面用リピーター追加・削除）
     ?>
     <script>
     document.addEventListener('DOMContentLoaded', function(){
+        // 追加ボタン
         document.querySelectorAll('.add-basic, .add-adv').forEach(function(btn){
             btn.addEventListener('click', function(){
                 const container = btn.closest('div');
+                const inputDiv = document.createElement('div');
+                inputDiv.className = 'repeater-item';
+
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.name = btn.classList.contains('add-basic') ? 'basic_dates[]' : 'advanced_dates[]';
                 input.className = 'widefat';
-                container.insertBefore(input, btn);
+                inputDiv.appendChild(input);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'button remove-item';
+                removeBtn.textContent = '× 削除';
+                inputDiv.appendChild(removeBtn);
+
+                container.insertBefore(inputDiv, btn);
             });
+        });
+
+        // 削除ボタン
+        document.addEventListener('click', function(e){
+            if(e.target && e.target.classList.contains('remove-item')){
+                e.preventDefault();
+                const parent = e.target.closest('.repeater-item');
+                if(parent) parent.remove();
+            }
         });
     });
     </script>
