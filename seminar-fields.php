@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Seminar Fields
-Description: 講習会ページ専用カスタムフィールド（基礎＋応用リピーター）
+Description: 講習会ページ専用カスタムフィールド（基礎＋応用リピーター＋カリキュラム HTML編集）
 Version: 1.0.3
 Author: Media-Confidence
 */
@@ -35,82 +35,77 @@ function seminar_fields_html($post) {
     if (!is_array($basic_dates)) $basic_dates = [];
     if (!is_array($advanced_dates)) $advanced_dates = [];
 
-    // 基礎編
+    // 基礎編日程
     echo '<h3>基礎編 日程（複数追加可）</h3>';
     echo '<div id="basic-repeater">';
     foreach ($basic_dates as $val) {
-        echo '<div class="repeater-item">';
         echo '<input type="text" name="basic_dates[]" value="' . esc_attr($val) . '" class="widefat" />';
-        echo '<button type="button" class="button remove-item">× 削除</button>';
-        echo '</div>';
     }
     echo '<button type="button" class="button add-basic">＋ 追加</button>';
     echo '</div>';
 
     echo '<hr style="margin:20px 0;">';
 
-    // 応用編
+    // 応用編日程
     echo '<h3>応用編 日程（複数追加可）</h3>';
     echo '<div id="adv-repeater">';
     foreach ($advanced_dates as $val) {
-        echo '<div class="repeater-item">';
         echo '<input type="text" name="advanced_dates[]" value="' . esc_attr($val) . '" class="widefat" />';
-        echo '<button type="button" class="button remove-item">× 削除</button>';
-        echo '</div>';
     }
     echo '<button type="button" class="button add-adv">＋ 追加</button>';
     echo '</div>';
 
-    // カリキュラムなど既存項目も残す
-    $fields = [
-        'curriculum_title' => 'カリキュラム タイトル',
-        'curriculum_text' => 'カリキュラム 説明文',
-        'curriculum_basic' => 'カリキュラム（基礎編）',
-        'curriculum_advanced' => 'カリキュラム（応用編）'
-    ];
+    echo '<hr style="margin:20px 0;">';
 
-    echo '<table class="form-table">';
-    foreach ($fields as $key => $label) {
-        $value = esc_attr(get_post_meta($post->ID, $key, true));
-        echo "<tr><th><label for='{$key}'>{$label}</label></th>";
-        echo "<td><input type='text' id='{$key}' name='{$key}' value='{$value}' class='widefat'></td></tr>";
-    }
-    echo '</table>';
+    // カリキュラム（HTML編集可能）
+    $cur_basic = get_post_meta($post->ID, 'curriculum_basic', true);
+    $cur_adv   = get_post_meta($post->ID, 'curriculum_advanced', true);
+    $cur_title = get_post_meta($post->ID, 'curriculum_title', true);
+    $cur_text  = get_post_meta($post->ID, 'curriculum_text', true);
 
-    // 簡易JS（管理画面用リピーター追加・削除）
+    echo '<h3>カリキュラムタイトル</h3>';
+    echo '<input type="text" name="curriculum_title" value="' . esc_attr($cur_title) . '" class="widefat" />';
+
+    echo '<h3>カリキュラム説明文</h3>';
+    echo '<textarea name="curriculum_text" class="widefat" rows="3">' . esc_textarea($cur_text) . '</textarea>';
+
+    echo '<h3>カリキュラム（基礎編）</h3>';
+    wp_editor(
+        $cur_basic,
+        'curriculum_basic',
+        [
+            'textarea_name' => 'curriculum_basic',
+            'textarea_rows' => 15,
+            'media_buttons' => false,
+            'teeny' => true,
+        ]
+    );
+
+    echo '<h3>カリキュラム（応用編）</h3>';
+    wp_editor(
+        $cur_adv,
+        'curriculum_advanced',
+        [
+            'textarea_name' => 'curriculum_advanced',
+            'textarea_rows' => 15,
+            'media_buttons' => false,
+            'teeny' => true,
+        ]
+    );
+
+    // 管理画面用JS（リピーター追加）
     ?>
     <script>
     document.addEventListener('DOMContentLoaded', function(){
-        // 追加ボタン
         document.querySelectorAll('.add-basic, .add-adv').forEach(function(btn){
             btn.addEventListener('click', function(){
                 const container = btn.closest('div');
-                const inputDiv = document.createElement('div');
-                inputDiv.className = 'repeater-item';
-
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.name = btn.classList.contains('add-basic') ? 'basic_dates[]' : 'advanced_dates[]';
                 input.className = 'widefat';
-                inputDiv.appendChild(input);
-
-                const removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.className = 'button remove-item';
-                removeBtn.textContent = '× 削除';
-                inputDiv.appendChild(removeBtn);
-
-                container.insertBefore(inputDiv, btn);
+                container.insertBefore(input, btn);
             });
-        });
-
-        // 削除ボタン
-        document.addEventListener('click', function(e){
-            if(e.target && e.target.classList.contains('remove-item')){
-                e.preventDefault();
-                const parent = e.target.closest('.repeater-item');
-                if(parent) parent.remove();
-            }
         });
     });
     </script>
@@ -135,7 +130,12 @@ function seminar_save_custom_fields($post_id) {
     $keys = ['curriculum_title','curriculum_text','curriculum_basic','curriculum_advanced'];
     foreach ($keys as $key) {
         if (isset($_POST[$key])) {
-            update_post_meta($post_id, $key, sanitize_text_field($_POST[$key]));
+            if (in_array($key, ['curriculum_basic','curriculum_advanced'])) {
+                // HTMLを許可
+                update_post_meta($post_id, $key, $_POST[$key]);
+            } else {
+                update_post_meta($post_id, $key, sanitize_text_field($_POST[$key]));
+            }
         }
     }
 }
